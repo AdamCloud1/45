@@ -1,4 +1,4 @@
-:#include <Arduino.h>
+#include <Arduino.h>
 #include <String.h>
 #include <Adafruit_MPU6050.h>
 #include <Adafruit_Sensor.h>
