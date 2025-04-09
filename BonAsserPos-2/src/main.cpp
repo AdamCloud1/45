@@ -1,4 +1,4 @@
-#include <Arduino.h>
+:#include <Arduino.h>
 #include <String.h>
 #include <Adafruit_MPU6050.h>
 #include <Adafruit_Sensor.h>
@@ -111,30 +111,9 @@ void controle(void *parameters)
     {
       commande = -0.5;
     }
-    /*********************************************************************************
-             Contrôle des moteurs avec manette
-**********************************************************************************/
-    // Lire l'état du joystick
-    LSY = ps5.LStickY(); // Lire l'axe Y du stick gauche (avant/arrière)
-    RSX = ps5.RStickX(); // Lire l'axe X du stick droit (gauche/droite)
-   
-    //zone morte :
-    // if (abs(LSY) <3)
-    // {
-    //   LSY = 0;
-    // }
-    // if (abs(RSX) <3)
-    // {
-    //   RSX = 0;
-    // }
-
-    vit_consigne = LSY / 127.0;
-    commande = RSX / 127.0;
     
 
-    /*********************************************************************************
-                                     Asserv Vitesse
-    **********************************************************************************/
+    
     // Mesure Vitesse :
 
     encodeur = encoder.getCount();
@@ -152,9 +131,29 @@ void controle(void *parameters)
     vit_GObsf = vit_GObs * A + B * vit_GObsf;
 
     vit_Obs = (vit_DObsf + vit_GObsf) / 2;
+/*********************************************************************************
+             Contrôle des moteurs avec manette
+**********************************************************************************/
+    // Lire l'état du joystick
+    LSY = ps5.LStickY(); // Lire l'axe Y du stick gauche (avant/arrière)
+    RSX = ps5.RStickX(); // Lire l'axe X du stick droit (gauche/droite)
+   
+    //zone morte :
+    // if (abs(LSY) <3)
+    // {
+    //   LSY = 0;
+    // }
+    // if (abs(RSX) <3)
+    // {
+    //   RSX = 0;
+    // }
 
-    // AsserVitesse //:
-
+    vit_consigne = LSY / 127.0;
+    dir = RSX / 127.0;
+    
+    /*********************************************************************************
+                                     Asserv Vitesse
+    **********************************************************************************/
     erreurvit = vit_consigne - vit_Obs;
     deriv_erreurvit = (erreurvit - erreurvit_precedente) / (Te / 1000);
     erreurvit_precedente = erreurvit;
@@ -177,8 +176,11 @@ void controle(void *parameters)
     // controle des PWM :
 
     // tourne moteur A
-    alpha1 = 0.5 + commande;
-    alpha2 = 0.5 - commande;
+    alpha1 = 0.5 + commande-dir;
+    alpha2 = 0.5 - commande+dir;
+alpha1 = constrain(alpha1, 0.0, 1.0);
+alpha2 = constrain(alpha2, 0.0, 1.0);
+
 
     rapportcycliqueA = 1023 * alpha1;
     rapportcycliqueB = 1023 * alpha2;
@@ -388,3 +390,4 @@ void serialEvent()
     reception(Serial.read());
   }
 }
+
