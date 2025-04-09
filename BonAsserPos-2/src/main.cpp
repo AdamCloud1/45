@@ -36,7 +36,7 @@ static float erreur_precedente = 0;
 float rapportcycliqueA, rapportcycliqueB, alpha1, alpha2;
 // vitesse :
 float erreurvit, vit_GObs, vit_GObsf, vit_DObs, vit_DObsf, vit_Obs, TrA, TrB, kpvit = 0.1015, vit_consigne = 0, dir;
-float kpvit_cmd, kdvit = 0.095, deriv_erreurvit, deriv_erreurvitf, erreurvit_precedente, offset = 0.4;
+float kpvit_cmd, kdvit = 0.095, deriv_erreurvit, deriv_erreurvitf, erreurvit_precedente, sat = 0.4;
 
 int etat;
 
@@ -45,6 +45,10 @@ ESP32Encoder encoder;
 ESP32Encoder encoder2;
 long encodeur, encodeur2;
 
+//controle tension :
+int tension = 25;
+float lecture_tension;
+float tension_reel;
 //  moteurs :
 const int in1 = 33;
 const int in2 = 32;
@@ -111,9 +115,7 @@ void controle(void *parameters)
     {
       commande = -0.5;
     }
-    
 
-    
     // Mesure Vitesse :
 
     encodeur = encoder.getCount();
@@ -131,26 +133,34 @@ void controle(void *parameters)
     vit_GObsf = vit_GObs * A + B * vit_GObsf;
 
     vit_Obs = (vit_DObsf + vit_GObsf) / 2;
-/*********************************************************************************
-             Contrôle des moteurs avec manette
-**********************************************************************************/
+    /*********************************************************************************
+                 Contrôle des moteurs avec manette
+    **********************************************************************************/
     // Lire l'état du joystick
     LSY = ps5.LStickY(); // Lire l'axe Y du stick gauche (avant/arrière)
     RSX = ps5.RStickX(); // Lire l'axe X du stick droit (gauche/droite)
-   
-    //zone morte :
-    // if (abs(LSY) <3)
-    // {
-    //   LSY = 0;
-    // }
-    // if (abs(RSX) <3)
-    // {
-    //   RSX = 0;
-    // }
+
+    if (LSY < 10 && LSY > 0)
+    {
+      LSY = 0;
+    }
+     if (LSY > -10 && LSY < 0)
+    {
+      LSY = 0;
+    }
+
+    if (RSX < 10 && RSX > 0)
+    {
+      RSX = 0;
+    }
+     if (RSX > -10 && RSX < 0)
+    {
+      RSX = 0;
+    }
 
     vit_consigne = LSY / 127.0;
     dir = RSX / 127.0;
-    
+
     /*********************************************************************************
                                      Asserv Vitesse
     **********************************************************************************/
@@ -164,23 +174,20 @@ void controle(void *parameters)
     // Saturation theta consigne :
     theta_consigne = kpvit_cmd;
 
-    if (theta_consigne > offset)
+    if (theta_consigne > sat)
     {
-      theta_consigne = offset;
+      theta_consigne = sat;
     }
-    else if (theta_consigne < -offset)
+    else if (theta_consigne < -sat)
     {
-      theta_consigne = -offset;
+      theta_consigne = -sat;
     }
 
     // controle des PWM :
 
     // tourne moteur A
-    alpha1 = 0.5 + commande-dir;
-    alpha2 = 0.5 - commande+dir;
-alpha1 = constrain(alpha1, 0.0, 1.0);
-alpha2 = constrain(alpha2, 0.0, 1.0);
-
+    alpha1 = 0.5 + commande - dir;
+    alpha2 = 0.5 - commande + dir;
 
     rapportcycliqueA = 1023 * alpha1;
     rapportcycliqueB = 1023 * alpha2;
@@ -213,8 +220,6 @@ void setup()
   ledcAttachPin(in2, canal1);
   ledcAttachPin(in3, canal2);
   ledcAttachPin(in4, canal3);
-
-  // encodeurs :
 
   // pin 16 et 17:
   encoder.attachHalfQuad(16, 17);
@@ -323,7 +328,7 @@ void reception(char ch)
 
     if (commande == "O")
     {
-      offset = valeur.toFloat();
+      sat = valeur.toFloat();
     }
     if (commande == "Oc")
     {
@@ -360,6 +365,10 @@ void loop()
 
   if (FlagCalcul == 1)
   {
+    lecture_tension = analogRead(tension)/4095.0;
+    tension_reel = lecture_tension * 9.6;
+    Serial.printf("%lf  %lf\n",lecture_tension, tension_reel);
+
     // Serial.print(theta_somme);
     /*
       Serial.print(vit_Obs);
@@ -376,7 +385,7 @@ void loop()
     if (ps5.isConnected())
     {
 
-      Serial.printf("%3.3f  %d\n", vit_consigne, ps5.LStickY());
+      //Serial.printf("%d  %d\n", RSX, LSY);
     }
 
     FlagCalcul = 0;
@@ -390,4 +399,3 @@ void serialEvent()
     reception(Serial.read());
   }
 }
-
